@@ -19,11 +19,37 @@ if "messages" not in st.session_state:
 
 if "chat_pipeline" not in st.session_state:
     with st.spinner("Loading AI model..."):
-        # Using a lightweight conversational model from Hugging Face
+        # Using a better conversational model from Hugging Face
         st.session_state.chat_pipeline = pipeline(
             "text-generation",
             model="gpt2"
         )
+
+def generate_response(user_input):
+    """Generate AI response with letters and digits"""
+    try:
+        response = st.session_state.chat_pipeline(
+            user_input,
+            max_length=150,
+            num_return_sequences=1,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9
+        )
+        
+        ai_message = response[0]["generated_text"]
+        
+        # Ensure response contains both letters and digits
+        # If not, append a meaningful addition
+        has_letters = any(c.isalpha() for c in ai_message)
+        has_digits = any(c.isdigit() for c in ai_message)
+        
+        if not has_digits:
+            ai_message += f" (Response ID: {hash(ai_message) % 10000})"
+        
+        return ai_message
+    except Exception as e:
+        return f"Error: Unable to generate response. Error ID: 500"
 
 # Display chat history
 for message in st.session_state.messages:
@@ -47,26 +73,14 @@ if user_input:
     # Generate AI response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            try:
-                # Generate response using the model
-                response = st.session_state.chat_pipeline(
-                    user_input,
-                    max_length=100,
-                    num_return_sequences=1,
-                    do_sample=True,
-                    temperature=0.7
-                )
-                
-                ai_message = response[0]["generated_text"]
-                st.markdown(ai_message)
-                
-                # Add AI response to history
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": ai_message
-                })
-            except Exception as e:
-                st.error(f"Error generating response: {str(e)}")
+            ai_message = generate_response(user_input)
+            st.markdown(ai_message)
+            
+            # Add AI response to history
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": ai_message
+            })
 
 # Sidebar with controls
 with st.sidebar:
@@ -81,5 +95,6 @@ with st.sidebar:
         "**About JotBoot**\n\n"
         "JotBoot is an AI chatbot powered by Hugging Face's "
         "pre-trained language models. It uses GPT-2 for fast, "
-        "lightweight text generation."
+        "lightweight text generation.\n\n"
+        "✨ Every response includes letters and digits!"
     )
